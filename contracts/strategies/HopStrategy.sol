@@ -72,8 +72,9 @@ contract HopStrategy is Initializable, BaseStrategy, UUPSUpgradeable {
         want.safeApprove(HOP_ROUTER, type(uint256).max);
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner{}
-
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     function name() external pure override returns (string memory) {
         return "HopStrategy";
@@ -199,7 +200,7 @@ contract HopStrategy is Initializable, BaseStrategy, UUPSUpgradeable {
     function HopToWant(
         uint256 amountIn
     ) internal view returns (uint256 amountOut) {
-        if(amountIn == 0) return 0;
+        if (amountIn == 0) return 0;
         amountOut = smthToSmth(
             WETH_USDC_UNI_POOL,
             WETH,

@@ -20,7 +20,6 @@ import {IBaseStrategy} from "./interfaces/IBaseStrategy.sol";
 import {IVaultToken} from "./interfaces/IVaultToken.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-
 contract Vault is
     Initializable,
     NonblockingLzAppUpgradeable,
@@ -89,32 +88,27 @@ contract Vault is
         _;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(GOVERNANCE){}
-
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(GOVERNANCE) {}
 
     function revokeFunds() external onlyRole(GOVERNANCE) {
         payable(msg.sender).transfer(address(this).balance);
     }
 
-    function setEmergencyShutdown(
-        bool _emergencyShutdown
+    function setSgLzSettings(
+        address _newSgRouter,
+        address _newSgBridge,
+        uint256 _gas
     ) external onlyRole(GOVERNANCE) {
-        emergencyShutdown = _emergencyShutdown;
-    }
-
-    function setGasForLzSend(uint256 _gas) external onlyRole(GOVERNANCE) {
+        sgRouter = _newSgRouter;
+        sgBridge = ISgBridge(_newSgBridge);
         gasForLzSend = _gas;
     }
 
-    function setSgBridge(address _newSgBridge) external onlyRole(GOVERNANCE) {
-        sgBridge = ISgBridge(_newSgBridge);
-    }
-
-    function setSgRouter(address _newSgRouter) external onlyRole(GOVERNANCE) {
-        sgRouter = _newSgRouter;
-    }
-
-    function setVaultToken(IVaultToken _newToken) external onlyRole(GOVERNANCE) {
+    function setVaultToken(
+        IVaultToken _newToken
+    ) external onlyRole(GOVERNANCE) {
         vaultToken = _newToken;
     }
 
@@ -147,13 +141,19 @@ contract Vault is
         if (emergencyShutdown) revert Vault__V11();
         uint256 shares = _issueSharesForAmount(_recipient, _amount);
         wantToken.safeTransferFrom(msg.sender, address(this), _amount);
-        emit Deposit(_msgSender(), _amount, _recipient, shares, block.timestamp);
+        emit Deposit(
+            _msgSender(),
+            _amount,
+            _recipient,
+            shares,
+            block.timestamp
+        );
         return shares;
     }
 
-    function skipWithdrawEpoch() external onlyOwner {
-        withdrawEpoch++;
-    }
+    // function skipWithdrawEpoch() external onlyOwner {
+    //     withdrawEpoch++;
+    // }
 
     function withdraw(
         uint256 _maxShares,
@@ -220,6 +220,24 @@ contract Vault is
         }
     }
 
+    function debtOutstandingForReport(
+        uint16 _chainId,
+        address _strategy,
+        uint256 _receivedTokens
+    ) public view returns (uint256) {
+        uint256 strategyDebtLimit = (strategies[_chainId][_strategy].debtRatio *
+            (totalAssets() - _receivedTokens)) / MAX_BPS;
+        uint256 strategyTotalDebt = strategies[_chainId][_strategy].totalDebt;
+
+        if (emergencyShutdown) {
+            return strategyTotalDebt;
+        } else if (strategyTotalDebt <= strategyDebtLimit) {
+            return 0;
+        } else {
+            return strategyTotalDebt - strategyDebtLimit;
+        }
+    }
+
     function creditAvailable(
         uint16 _chainId,
         address _strategy
@@ -255,7 +273,7 @@ contract Vault is
             _fulfillWithdrawEpoch();
             return;
         }
-        
+
         uint256 amountNeeded = withdrawValue - totalIdle();
         uint256 strategyRequested = 0;
         for (
@@ -383,7 +401,10 @@ contract Vault is
         uint64 _nonce,
         bytes calldata _payload
     ) public virtual override {
-        if (msg.sender != address(lzEndpoint) && !_strategiesByChainId[_srcChainId].contains(msg.sender)) revert Vault__V10();
+        if (
+            msg.sender != address(lzEndpoint) &&
+            !_strategiesByChainId[_srcChainId].contains(msg.sender)
+        ) revert Vault__V10();
         _blockingLzReceive(_srcChainId, _srcAddress, _nonce, _payload);
     }
 
@@ -418,8 +439,11 @@ contract Vault is
             _reportLoss(_chainId, _message.strategy, _message.loss);
         }
 
-        strategies[_chainId][_message.strategy].totalGain += _message.profit;
-        uint256 debt = debtOutstanding(_chainId, _message.strategy);
+        uint256 debt = debtOutstandingForReport(
+            _chainId,
+            _message.strategy,
+            _receivedTokens
+        );
         uint256 debtPayment = Math.min(debt, _message.debtPayment);
 
         if (debtPayment > 0) {
@@ -567,7 +591,13 @@ contract Vault is
             request.success = true;
             wantToken.safeTransfer(request.user, valueToTransfer);
             vaultToken.burn(address(this), request.shares);
-            emit Withdraw(request.author, valueToTransfer, request.user, request.shares, block.timestamp);
+            emit Withdraw(
+                request.author,
+                valueToTransfer,
+                request.user,
+                request.shares,
+                block.timestamp
+            );
         }
 
         emit FulfilledWithdrawEpoch(withdrawEpoch, requestsLength);
@@ -654,36 +684,38 @@ contract Vault is
         _usedNonces[_chainId][_report.strategy][_report.nonce] = true;
     }
 
-    function clearWithdrawRequests(
-        address[] calldata _from,
-        address[] calldata _to,
-        uint256[] calldata _amount
-    ) external onlyOwner {
-        for (uint256 i = 0; i < _from.length; i++) {
-            for (
-                uint j = 0;
-                j < withdrawEpochs[withdrawEpoch].requests.length;
-                j++
-            ) {
-                if (
-                    _from[i] ==
-                    withdrawEpochs[withdrawEpoch].requests[j].author &&
-                    _to[i] == withdrawEpochs[withdrawEpoch].requests[j].user &&
-                    _amount[i] ==
-                    withdrawEpochs[withdrawEpoch].requests[j].shares
-                ) {
-                    withdrawEpochs[withdrawEpoch].requests[j] = withdrawEpochs[
-                        withdrawEpoch
-                    ].requests[
-                            withdrawEpochs[withdrawEpoch].requests.length - 1
-                        ];
-                    withdrawEpochs[withdrawEpoch].requests.pop();
-                }
-            }
-        }
-    }
+    // function clearWithdrawRequests(
+    //     address[] calldata _from,
+    //     address[] calldata _to,
+    //     uint256[] calldata _amount
+    // ) external onlyOwner {
+    //     for (uint256 i = 0; i < _from.length; i++) {
+    //         for (
+    //             uint j = 0;
+    //             j < withdrawEpochs[withdrawEpoch].requests.length;
+    //             j++
+    //         ) {
+    //             if (
+    //                 _from[i] ==
+    //                 withdrawEpochs[withdrawEpoch].requests[j].author &&
+    //                 _to[i] == withdrawEpochs[withdrawEpoch].requests[j].user &&
+    //                 _amount[i] ==
+    //                 withdrawEpochs[withdrawEpoch].requests[j].shares
+    //             ) {
+    //                 withdrawEpochs[withdrawEpoch].requests[j] = withdrawEpochs[
+    //                     withdrawEpoch
+    //                 ].requests[
+    //                         withdrawEpochs[withdrawEpoch].requests.length - 1
+    //                     ];
+    //                 withdrawEpochs[withdrawEpoch].requests.pop();
+    //             }
+    //         }
+    //     }
+    // }
 
-    function mixChainIds(uint256[] calldata values) external onlyRole(GOVERNANCE) {
+    function mixChainIds(
+        uint256[] calldata values
+    ) external onlyRole(GOVERNANCE) {
         for (uint256 i = 0; i < values.length; i++) {
             _supportedChainIds.remove(values[i]);
             _supportedChainIds.add(values[i]);
