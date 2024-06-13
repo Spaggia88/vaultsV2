@@ -70,8 +70,7 @@ abstract contract BaseStrategy is
     }
 
     modifier onlyHarvester() {
-        if (msg.sender != harvester)
-            revert OnlyHarvester();
+        if (msg.sender != harvester) revert OnlyHarvester();
         _;
     }
 
@@ -129,13 +128,20 @@ abstract contract BaseStrategy is
 
     function estimatedTotalAssets() public view virtual returns (uint256);
 
-    function setLzSettings(address _endpoint, address _sgBridge, address _sgRouter) external onlyOwner {
+    function setLzSettings(
+        address _endpoint,
+        address _sgBridge,
+        address _sgRouter
+    ) external onlyOwner {
         lzEndpoint = ILayerZeroEndpointUpgradeable(_endpoint);
         sgBridge = ISgBridge(_sgBridge);
         sgRouter = IStargateRouter(_sgRouter);
     }
 
-    function setOperators(address _strategist, address _harvester) external onlyOwner {
+    function setOperators(
+        address _strategist,
+        address _harvester
+    ) external onlyOwner {
         harvester = _harvester;
         strategist = _strategist;
     }
@@ -161,7 +167,11 @@ abstract contract BaseStrategy is
         slippage = _slippage;
     }
 
-    function setFees(uint256 perfFee, uint256 manageFee, address _treasury) external onlyOwner {
+    function setFees(
+        uint256 perfFee,
+        uint256 manageFee,
+        address _treasury
+    ) external onlyOwner {
         if (perfFee > MAX_BPS / 2) revert BaseStrategy__UnAcceptableFee();
         if (manageFee > MAX_BPS) revert BaseStrategy__UnAcceptableFee();
         performanceFee = perfFee;
@@ -244,7 +254,7 @@ abstract contract BaseStrategy is
         } else {
             giveToStrategy = 0;
             requestFromStrategy = fundsAvailable - _creditAvailable;
-        }        
+        }
         StrategyReport memory report = StrategyReport({
             strategy: address(this),
             timestamp: block.timestamp,
@@ -477,11 +487,13 @@ abstract contract BaseStrategy is
         }
 
         if (vaultChainId == currentChainId) {
-            bytes memory _src = abi.encodePacked(
-            address(this),
-            vault
-        );
-            ILayerZeroReceiverUpgradeable(vault).lzReceive(currentChainId,_src,0,_payload);
+            bytes memory _src = abi.encodePacked(address(this), vault);
+            ILayerZeroReceiverUpgradeable(vault).lzReceive(
+                currentChainId,
+                _src,
+                0,
+                _payload
+            );
             return;
         }
 
@@ -519,9 +531,7 @@ abstract contract BaseStrategy is
         if (gain == 0) {
             return 0;
         }
-        uint256 _managementFee = ((totalDebt) *
-            duration *
-            managementFee) /
+        uint256 _managementFee = ((totalDebt) * duration * managementFee) /
             MAX_BPS /
             SECS_PER_YEAR;
         uint256 _performanceFee = (gain * performanceFee) / MAX_BPS;

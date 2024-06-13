@@ -99,7 +99,7 @@ contract SwapHelper is AccessControl, ChainlinkClient, ISwapHelper {
         _grantRole(QUOTE_AUTHORIZED_ROLE, _strategist);
         _grantRole(SWAP_AUTHORIZED_ROLE, _strategist);
 
-        setChainlinkToken(chainlinkTokenAddress);
+        _setChainlinkToken(chainlinkTokenAddress);
         setOracleAddress(chainlinkOracleAddress);
 
         setJobInfo(
@@ -128,7 +128,7 @@ contract SwapHelper is AccessControl, ChainlinkClient, ISwapHelper {
         address _oracleAddress
     ) public onlyRole(STRATEGIST_ROLE) {
         oracleAddress = _oracleAddress;
-        setChainlinkOracle(_oracleAddress);
+        _setChainlinkOracle(_oracleAddress);
     }
 
     function getOracleAddress()
@@ -196,30 +196,30 @@ contract SwapHelper is AccessControl, ChainlinkClient, ISwapHelper {
         uint256 amount
     ) external override onlyRole(QUOTE_AUTHORIZED_ROLE) {
         isReadyToFulfillQuote = false; // double check the flag
-        Chainlink.Request memory req = buildOperatorRequest(
+        Chainlink.Request memory req = _buildOperatorRequest(
             jobInfos[uint256(JobPurpose.QUOTE)].jobId,
             this.registerQuoteRequest.selector
         );
-        req.add("method", "GET");
-        req.add(
-            "url",
-            string(
-                abi.encodePacked(
-                    "https://api.1inch.dev/swap/v5.2/1/quote?src=",
-                    Strings.toHexString(src),
-                    "&dst=",
-                    Strings.toHexString(dst),
-                    "&amount=",
-                    Strings.toString(amount)
-                )
-            )
-        );
-        req.add("contact", "locus-finance");
+        // req.add("method", "GET");
+        // req.add(
+        //     "url",
+        //     string(
+        //         abi.encodePacked(
+        //             "https://api.1inch.dev/swap/v5.2/1/quote?src=",
+        //             Strings.toHexString(src),
+        //             "&dst=",
+        //             Strings.toHexString(dst),
+        //             "&amount=",
+        //             Strings.toString(amount)
+        //         )
+        //     )
+        // );
+        // req.add("contact", "locus-finance");
         quoteBuffer.swapInfo.srcToken = src;
         quoteBuffer.swapInfo.dstToken = dst;
         quoteBuffer.swapInfo.inAmount = amount;
         // Send the request to the Chainlink oracle
-        sendOperatorRequest(
+        _sendOperatorRequest(
             req,
             jobInfos[uint256(JobPurpose.QUOTE)].jobFeeInJuels
         );
@@ -300,34 +300,34 @@ contract SwapHelper is AccessControl, ChainlinkClient, ISwapHelper {
         address sender = _msgSender();
         _setMaxAllowancesIfNeededAndCheckPayment(src, amount, sender);
 
-        Chainlink.Request memory req = buildOperatorRequest(
+        Chainlink.Request memory req = _buildOperatorRequest(
             jobInfos[uint256(JobPurpose.SWAP_CALLDATA)].jobId,
             this.registerSwapCalldata.selector
         );
-        req.add("method", "GET");
-        req.add(
-            "url",
-            string(
-                abi.encodePacked(
-                    "https://api.1inch.dev/swap/v5.2/1/swap?src=",
-                    Strings.toHexString(src),
-                    "&dst=",
-                    Strings.toHexString(dst),
-                    "&amount=",
-                    Strings.toString(amount),
-                    "&from=",
-                    Strings.toHexString(address(this)),
-                    "&slippage=",
-                    Strings.toString(slippage),
-                    "&receiver=",
-                    Strings.toHexString(sender),
-                    "&disableEstimate=true"
-                )
-            )
-        );
-        req.add("contact", "locus-finance");
+        // req.add("method", "GET");
+        // req.add(
+        //     "url",
+        //     string(
+        //         abi.encodePacked(
+        //             "https://api.1inch.dev/swap/v5.2/1/swap?src=",
+        //             Strings.toHexString(src),
+        //             "&dst=",
+        //             Strings.toHexString(dst),
+        //             "&amount=",
+        //             Strings.toString(amount),
+        //             "&from=",
+        //             Strings.toHexString(address(this)),
+        //             "&slippage=",
+        //             Strings.toString(slippage),
+        //             "&receiver=",
+        //             Strings.toHexString(sender),
+        //             "&disableEstimate=true"
+        //         )
+        //     )
+        // );
+        // req.add("contact", "locus-finance");
         swapBuffer = SwapInfo({srcToken: src, dstToken: dst, inAmount: amount});
-        sendOperatorRequest(
+        _sendOperatorRequest(
             req,
             jobInfos[uint256(JobPurpose.SWAP_CALLDATA)].jobFeeInJuels
         );
@@ -379,7 +379,7 @@ contract SwapHelper is AccessControl, ChainlinkClient, ISwapHelper {
     }
 
     function withdrawLink() public onlyRole(STRATEGIST_ROLE) {
-        LinkTokenInterface link = LinkTokenInterface(chainlinkTokenAddress());
+        LinkTokenInterface link = LinkTokenInterface(_chainlinkTokenAddress());
         if (!link.transfer(_msgSender(), link.balanceOf(address(this)))) {
             revert TransferError();
         }

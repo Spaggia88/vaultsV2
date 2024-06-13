@@ -16,7 +16,12 @@ struct SwapInfo {
     address tokenToSwap;
 }
 
-contract SgBridge is Initializable, OwnableUpgradeable, ISgBridge, UUPSUpgradeable {
+contract SgBridge is
+    Initializable,
+    OwnableUpgradeable,
+    ISgBridge,
+    UUPSUpgradeable
+{
     using SafeERC20 for IERC20;
 
     IStargateRouter public router;
@@ -43,7 +48,9 @@ contract SgBridge is Initializable, OwnableUpgradeable, ISgBridge, UUPSUpgradeab
         dstGasForCall = 1_000_000;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner{}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 
     function setRouter(address _router) external override onlyOwner {
         router = IStargateRouter(_router);
@@ -82,7 +89,7 @@ contract SgBridge is Initializable, OwnableUpgradeable, ISgBridge, UUPSUpgradeab
         uint16 _chainId,
         uint256 _poolId
     ) external override onlyOwner {
-        IERC20(_token).forceApprove(address(router), type(uint256).max);
+        IERC20(_token).safeApprove(address(router), type(uint256).max);
         poolIds[_token][_chainId] = _poolId;
     }
 
