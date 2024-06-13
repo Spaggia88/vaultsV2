@@ -63,6 +63,7 @@ export interface VaultInterface extends Interface {
       | "debtOutstanding"
       | "debtOutstandingForReport"
       | "deposit"
+      | "depositLimit"
       | "emergencyShutdown"
       | "failedMessages"
       | "forceResumeReceive"
@@ -96,6 +97,7 @@ export interface VaultInterface extends Interface {
       | "revokeFunds"
       | "revokeRole"
       | "setConfig"
+      | "setDepositLimit"
       | "setMinDstGas"
       | "setPayloadSizeLimit"
       | "setPrecrime"
@@ -183,6 +185,10 @@ export interface VaultInterface extends Interface {
   encodeFunctionData(
     functionFragment: "deposit",
     values: [BigNumberish, AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "depositLimit",
+    values?: undefined
   ): string;
   encodeFunctionData(
     functionFragment: "emergencyShutdown",
@@ -309,6 +315,10 @@ export interface VaultInterface extends Interface {
   encodeFunctionData(
     functionFragment: "setConfig",
     values: [BigNumberish, BigNumberish, BigNumberish, BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setDepositLimit",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "setMinDstGas",
@@ -447,6 +457,10 @@ export interface VaultInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "deposit", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "depositLimit",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "emergencyShutdown",
     data: BytesLike
   ): Result;
@@ -548,6 +562,10 @@ export interface VaultInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "revokeRole", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "setConfig", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "setDepositLimit",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "setMinDstGas",
     data: BytesLike
@@ -1124,6 +1142,8 @@ export interface Vault extends BaseContract {
     "nonpayable"
   >;
 
+  depositLimit: TypedContractMethod<[], [bigint], "view">;
+
   emergencyShutdown: TypedContractMethod<[], [boolean], "view">;
 
   failedMessages: TypedContractMethod<
@@ -1305,6 +1325,12 @@ export interface Vault extends BaseContract {
       _configType: BigNumberish,
       _config: BytesLike
     ],
+    [void],
+    "nonpayable"
+  >;
+
+  setDepositLimit: TypedContractMethod<
+    [_newLimit: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -1541,6 +1567,9 @@ export interface Vault extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "depositLimit"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "emergencyShutdown"
   ): TypedContractMethod<[], [boolean], "view">;
   getFunction(
@@ -1742,6 +1771,9 @@ export interface Vault extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "setDepositLimit"
+  ): TypedContractMethod<[_newLimit: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "setMinDstGas"
   ): TypedContractMethod<

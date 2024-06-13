@@ -42,13 +42,12 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    // hardhat: {
-    //   chainId: 42161,
-    //   forking: {
-    //     url: ARBITRUM_NODE || "",
-    //     blockNumber: 218148028,
-    //   },
-    // },
+    hardhat: {
+      chainId: 42161,
+      forking: {
+        url: ARBITRUM_NODE || "",
+      },
+    },
     mainnet: {
       url: ETH_NODE || "",
       chainId: 1,

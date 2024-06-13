@@ -72,6 +72,8 @@ contract Vault is
         internal _usedNonces;
     address public sgRouter;
     uint256 public gasForLzSend;
+    error Vault__AmountIsIncorrect();
+    uint256 public depositLimit;
 
     modifier isAction(uint16 _chainId, address _strategy) {
         if (strategies[_chainId][_strategy].activation == 0) revert Vault__V2();
@@ -104,6 +106,10 @@ contract Vault is
         sgRouter = _newSgRouter;
         sgBridge = ISgBridge(_newSgBridge);
         gasForLzSend = _gas;
+    }
+
+    function setDepositLimit(uint256 _newLimit) external onlyRole(GOVERNANCE) {
+        depositLimit = _newLimit;
     }
 
     function setVaultToken(
@@ -139,6 +145,9 @@ contract Vault is
         address _recipient
     ) public nonReentrant returns (uint256) {
         if (emergencyShutdown) revert Vault__V11();
+        if (_amount + totalAssets() > depositLimit || _amount == 0) {
+            revert Vault__AmountIsIncorrect();
+        }
         uint256 shares = _issueSharesForAmount(_recipient, _amount);
         wantToken.safeTransferFrom(msg.sender, address(this), _amount);
         emit Deposit(
